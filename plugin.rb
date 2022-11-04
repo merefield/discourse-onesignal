@@ -18,6 +18,47 @@ after_initialize do
     has_many :onesignal_subscriptions, dependent: :delete_all
   end
 
+
+  PostAlerter.class_eval do
+    def self.push_notification(user, payload)
+      return if user.do_not_disturb?
+
+      DiscoursePluginRegistry.push_notification_filters.each do |filter|
+        return unless filter.call(user, payload)
+      end
+
+      if SiteSetting.onesignal_app_id.nil? || SiteSetting.onesignal_app_id.empty?
+        Rails.logger.warn('OneSignal App ID is missing')
+      end
+      if SiteSetting.onesignal_rest_api_key.nil? || SiteSetting.onesignal_rest_api_key.empty?
+        Rails.logger.warn('OneSignal REST API Key is missing')
+      end
+
+      if user.push_subscriptions.exists?
+        Jobs.enqueue(:send_push_notification, user_id: user.id, payload: payload)
+      end
+
+      if user.onesignal_subscriptions.exists?
+        Jobs.enqueue(:onesignal_pushnotification, payload: payload, username: user.username)
+      end
+
+      if SiteSetting.allow_user_api_key_scopes.split("|").include?("push") && SiteSetting.allowed_user_api_push_urls.present?
+        clients = user.user_api_keys
+          .joins(:scopes)
+          .where("user_api_key_scopes.name IN ('push', 'notifications')")
+          .where("push_url IS NOT NULL AND push_url <> ''")
+          .where("position(push_url IN ?) > 0", SiteSetting.allowed_user_api_push_urls)
+          .where("revoked_at IS NULL")
+          .order(client_id: :asc)
+          .pluck(:client_id, :push_url)
+
+        if clients.length > 0
+          Jobs.enqueue(:push_notification, clients: clients, payload: payload, user_id: user.id)
+        end
+      end
+    end
+  end
+
   DiscourseEvent.on(:post_notification_alert) do |user, payload|
 
     if SiteSetting.onesignal_app_id.nil? || SiteSetting.onesignal_app_id.empty?
