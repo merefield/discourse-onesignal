@@ -59,26 +59,6 @@ after_initialize do
     end
   end
 
-  # DiscourseEvent.on(:post_notification_alert) do |user, payload|
-
-  #   if SiteSetting.onesignal_app_id.nil? || SiteSetting.onesignal_app_id.empty?
-  #     Rails.logger.warn('OneSignal App ID is missing')
-  #   end
-  #   if SiteSetting.onesignal_rest_api_key.nil? || SiteSetting.onesignal_rest_api_key.empty?
-  #     Rails.logger.warn('OneSignal REST API Key is missing')
-  #   end
-
-  #   # legacy, no longer used
-  #   clients = user.user_api_keys
-  #       .where("('push' = ANY(scopes) OR 'notifications' = ANY(scopes)) AND push_url IS NOT NULL AND position(push_url in ?) > 0 AND revoked_at IS NULL",
-  #                 ONESIGNALAPI)
-  #       .pluck(:client_id, :push_url)
-
-  #   if user.onesignal_subscriptions.exists? || clients.length > 0
-  #     Jobs.enqueue(:onesignal_pushnotification, payload: payload, username: user.username)
-  #   end
-  # end
-
   module ::Jobs
     class OnesignalPushnotification < ::Jobs::Base
       def execute(args)
