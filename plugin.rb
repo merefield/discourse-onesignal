@@ -84,7 +84,18 @@ after_initialize do
       def execute(args)
         payload = args["payload"]
 
-        heading = payload[:topic_title].blank? ? "Notification" : payload[:topic_title]
+        heading = ""
+
+        case payload[:notification_type]
+        when Notification.types[:chat_mention]
+          heading = I18n.t("notifications.titles.chat_mention")
+        when Notification.types[:chat_message]
+          heading = I18n.t("notifications.titles.chat_message")
+        end
+
+        if heading.blank?
+          heading = payload[:topic_title].blank? ? "Notification" : payload[:topic_title]
+        end
 
         params = {
           "app_id" => SiteSetting.onesignal_app_id,
